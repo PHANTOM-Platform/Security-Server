@@ -95,7 +95,7 @@ peapi_openObject(ObjName,Operations) :-
 	;   % new open
 	    ngac_pdp_pqapi(PDP),
 	    format(atom(Query),'getobjinfo?object=~a',[ObjName]),
-	    atom_concat(PDP,Query,PDPquery), format('sending query ~w~n',PDPquery),
+	    Atom_concat(PDP,Query,PDPquery), format('sending query ~w~n',PDPquery),
 	    http_get(PDPquery,PDPresult,[]), % query the PDP
 	    format('PDP query result=~w~n',PDPresult),
 	    %read_term_from_atom(PDPresult,Term,[]),

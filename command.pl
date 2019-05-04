@@ -25,7 +25,7 @@ syntax(halt,                                        admin).
 syntax(help,                                        admin).
 syntax(help(command),				    admin).
 syntax(import(file_spec),                                     advanced).
-syntax(import_policy(pol_id),                                 advanced).
+syntax(import_policy(policy_file),	                      advanced).
 syntax(inspect,                                     admin).
 syntax(inspect(item),                               admin).
 syntax(los(policy),                                 admin).
@@ -212,7 +212,7 @@ help(versions,	'Show past versions with descriptions and current version.').
 %
 do(access(P,(U,M,O))) :- !,
 	(   spld:access_check(P,(U,M,O))
-	->  writeln(permit)
+	->  writeln(grant)
 	;   writeln(deny)
 	).
 do(admin) :- !, retractall(user_mode(_)), assert(user_mode(admin)).

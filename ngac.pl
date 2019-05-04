@@ -1,9 +1,10 @@
-% Next Generation Access Control policy tool
+% Next Generation Access Control policy tool and server
 
 :- module(ngac, [ngac/0,ngac/1,ngac/4,ngac_server/0]).
 :- use_module([
        param,command,common,pio,policies,
-       test,procs,pmcmd,spld,server,sessions
+       test,procs,pmcmd,spld,server,sessions,
+       audit
    ]).
 
 %=====================================================================
@@ -79,6 +80,7 @@ initialize_all :-
 	% initialize all subsystems and modules requiring it
 
 	spld:init,
+	audit:init(basic),
 	% ...
 
 	true.

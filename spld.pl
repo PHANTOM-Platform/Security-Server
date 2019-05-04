@@ -13,6 +13,7 @@
 
 :- use_module(policies).
 :- use_module(pio).
+:- use_module(param).
 
 :- include('TEST/spld_test').
 

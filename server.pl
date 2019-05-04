@@ -2,6 +2,12 @@
 
 :- module(server, [server/1,server/2,server_with_args/1]).
 
+:- use_module(audit,[audit_gen/2]).
+:- use_module(param).
+:- use_module(spld).
+:- use_module(sessions).
+
+
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_wrapper)).
@@ -65,21 +71,18 @@ server_opt_spec([
 ]).
 
 :- dynamic server_options/1.
-server_options([]).
-
-%option_deny :- server_options(O), memberchk(deny(true),O).
-%option_permit :- server_options(O), memberchk(grant(true),O).
+server_options([deny(false),grant(false),selftest(false),verbose(false)]).
 
 server(Port) :-
+	create_server_audit_log,
 	http_server(http_dispatch, [port(Port)]),
 	format('ngac-server started~n'),
+	audit_gen(ngac_start, ngac_server(success)),
 	param:server_sleeptime(S), my_sleep(S).
 
 server(Port,Token) :-
 	param:setparam(admin_token,Token),
-	http_server(http_dispatch, [port(Port)]),
-	format('ngac-server started~n'),
-	param:server_sleeptime(S), my_sleep(S).
+	server(Port).
 
 server_with_args(Argv) :-
 	% format('Server Argv: ~q~n',[Argv]),
@@ -128,9 +131,10 @@ server_with_args(Argv) :-
 	),
 
 	format('ngac-server starting on port ~d~n',[QPort]),
-	% http_server_hook([port(QPort)]),
+	create_server_audit_log,
 	http_server(http_dispatch, [port(QPort)]),
 	format('ngac-server started~n'),
+	audit_gen(ngac_start, ngac_server(success)),
 
 	% run self-test here if turned on in param or command line
 	% ngac:self_test_all,
@@ -151,6 +155,13 @@ server_with_args(Argv) :-
         my_sleep(S) :-
 	        sleep(S),
                 my_sleep(S).
+
+create_server_audit_log :- param:audit_logging(file), !,
+	audit:gen_time_stamp(TS),
+	atomic_list_concat(['LOG/audit_log','_',TS],LogFile),
+	open(LogFile,append,AudStream),
+	param:setparam(audit_stream,AudStream).
+create_server_audit_log.
 
 %
 % Policy Query API
@@ -185,25 +196,37 @@ pqapi_getobjinfo(Request) :-
 	%	   [O,Oclass,Inh,Host,Path,BaseType,BaseName])
 	).
 
-access_response(_,_,_) :- server_options(O), memberchk(deny(true),O), !, writeln(deny).
-access_response(_,_,_) :- server_options(O), memberchk(grant(true),O), !, writeln(grant).
+access_response(User,AR,Object) :- server_options(Opt), memberchk(deny(true),Opt), !,
+	param:current_policy(Policy), access_deny(Policy,User,AR,Object).
+
+access_response(User,AR,Object) :- server_options(Opt), memberchk(grant(true),Opt), !,
+	param:current_policy(Policy), access_grant(Policy,User,AR,Object).
+
 access_response(User,AR,Object) :-
 	param:current_policy(Policy),
 	(   Policy == none
 	->  writeln('no current policy')
 	;
 	(   spld:access_check(Policy,(User,AR,Object))
-	->  writeln(grant)
-	;   writeln(deny)
+	->  access_grant(Policy,User,AR,Object)
+	;   access_deny(Policy,User,AR,Object)
 	)).
+
+access_grant(Policy,UserOrSession,AR,Object) :-
+	( sessions:is_session(UserOrSession,U), User = session(U) ; User = UserOrSession ),
+	% audit record will show session(<user>) if session invocation, otherwise just <user>
+	audit_gen(pq_grant, access(Policy,(User,AR,Object))),
+	writeln(grant). % actual response to caller
+
+access_deny(Policy,UserOrSession,AR,Object) :-
+	( sessions:is_session(UserOrSession,U), User = session(U) ; User = UserOrSession ),
+	% audit record will show session(<user>) if session invocation, otherwise just <user>
+	audit_gen(pq_deny, access(Policy,(User,AR,Object))),
+	writeln(deny). % actual response to caller
 
 %
 % Policy Administration API
 %
-
-:- use_module(param).
-:- use_module(spld).
-:- use_module(sessions).
 
 permitted_add_delete_policy_elements([user,object,assign]).
 

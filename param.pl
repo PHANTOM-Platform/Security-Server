@@ -18,8 +18,8 @@
 		  prettyprint_tab/1,
 		  host_os/1, local_pdf_viewer/2, default_policy_file/1,
 		  current_policy/1,
-                  pqapi_port/1, paapi_port/1, admin_token/1, all_composition/1,
-                  server_sleeptime/1
+                  pqapi_port/1, paapi_port/1, admin_token/1, mf_token/1, all_composition/1,
+                  server_sleeptime/1, audit_logging/1, audit_stream/1, audit_selection/1
 		 ]).
 
 % Versioning of various things
@@ -42,7 +42,7 @@ ngac_version('0.3.2', 'enhanced server version with separate PQ and PA APIs' ).
 ngac_version('0.3.3', 'added \'all\' composition, new options, policy change' ).
 
 ngac_version('0.3.4' /* ongoing development of server */ ).
-ngac_current_version_description('support for multiple domains/namespaces').
+ngac_current_version_description('support for: audit in server, other improvements').
 
 ngac_name('TOG-NGAC','TOG-ngac').
 
@@ -52,10 +52,12 @@ ngac_name('TOG-NGAC','TOG-ngac').
 :- dynamic debug/1, statusprt/1, self_test/1, current_policy/1,
 	regression_test/1, initialize/1, initialized/1, verbose/1,
 	user_level/1, current_policy/1, pqapi_port/1, paapi_port/1,
-        admin_token/1.
+        admin_token/1, mf_token/1,
+        audit_logging/1,audit_stream/1,audit_selection/1.
 
 settable_params([debug,self_test,statusprt,initialize,initialized,regression_test,verbose,
-		 user_level,current_policy,pqapi_port,paapi_port,admin_token]).
+		 user_level,current_policy,pqapi_port,paapi_port,admin_token,mf_token,
+                 audit_logging,audit_stream,audit_selection]).
 
 setparam(Param,Value) :- atom(Param), ground(Value),
     settable_params(SP), memberchk(Param,SP), !,
@@ -74,8 +76,20 @@ current_policy('none').
 pqapi_port(8001). % default pqapi server port
 paapi_port(8001). % default paapi server port, currently same as pqapi
 admin_token('admin_token'). % default admin token !?
+mf_token('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyLmRlbG9uZ0BvcGVuZ3JvdXAub3JnIiwiaWF0IjoxNTU2ODMwMTY3LCJleHAiOjE1NTk0MjIxNjd9.BAshfdS2fdvqN-gkr2FP0PoTVPvML614UtORAYf6A5Y').
 all_composition(p_uo). % default qualification condition for 'all' composition
 server_sleeptime(32767). % sleep main control repeatedly after server start
+
+% AUDITING - In addition to (optionally) sending audit records to a
+% system audit service, they will be written to a local log if
+% audit_logging is not 'off'. The local log is sent to audit_stream
+% (user_error by default). If audit_logging is 'file' then a file will
+% be opened and audit_stream set to the open file stream.
+
+audit_logging(file). % 'file' for LOG file or 'on' for std err or 'off'
+audit_stream(user_error). % default stream for audit log (standard error)
+audit_selection([]). % currently selected set of events for audit generation
+
 
 % Modules providing functional tests
 %
